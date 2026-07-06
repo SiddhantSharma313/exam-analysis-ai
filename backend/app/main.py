@@ -65,6 +65,10 @@ class AIAnalysisResponse(BaseModel):
     predictedImportantAreas: list[str]
     highROIRevisionAreas: list[str]
     recurringQuestionPatterns: list[str]
+    importantTopicConnections: list[str] = []
+    likelyQuestionCombinations: list[str] = []
+    examTrendSummary: str = ""
+    revisionPriorityOrder: list[str] = []
     examStrategyInsights: list[str]
     confidenceScore: str
 

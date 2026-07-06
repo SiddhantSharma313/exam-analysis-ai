@@ -128,7 +128,7 @@ def analyze_question_patterns(documents: list[dict[str, str]]) -> dict:
             if not matched_patterns:
                 continue
 
-            question_topics = extract_candidate_topics(question)
+            question_topics = extract_candidate_topics(question, file_type="question_paper")
             local_topic_counter = Counter(question_topics)
 
             for pattern in matched_patterns:

@@ -1,40 +1,21 @@
 import os
-from collections import Counter
 
 from openai import APIError, APITimeoutError, OpenAI
 
 from app.prompts.analysis_prompt import SYSTEM_PROMPT, build_user_prompt
+from app.services.metadata_builder import build_intelligent_metadata_summary
 from app.utils.json_parser import parse_json_object
 
 
 def build_ai_metadata_summary(
     topic_analysis: dict, question_patterns: dict, documents: list[dict[str, str]]
 ) -> dict:
-    topic_frequency = topic_analysis.get("topicFrequency", {})
-    sorted_topics = sorted(
-        topic_frequency.items(),
-        key=lambda item: item[1],
-        reverse=True,
+    """Build Stage 7 intelligent metadata for the LLM."""
+    return build_intelligent_metadata_summary(
+        topic_analysis=topic_analysis,
+        question_patterns=question_patterns,
+        documents=documents,
     )
-    top_topics = [
-        {"topic": topic, "count": count}
-        for topic, count in sorted_topics[:10]
-    ]
-
-    file_type_counter = Counter(document["file_type"] for document in documents)
-
-    return {
-        "subject": "Unknown Subject",
-        "filesAnalyzed": len(documents),
-        "fileTypeBreakdown": dict(file_type_counter),
-        "topTopics": top_topics,
-        "highFrequencyTopics": topic_analysis.get("importanceTier", {}).get(
-            "highlyImportant", []
-        )[:10],
-        "questionPatterns": question_patterns.get("patternFrequency", {}),
-        "highFrequencyPatterns": question_patterns.get("highFrequencyPatterns", []),
-        "neverAskedTopics": topic_analysis.get("neverAskedTopics", [])[:10],
-    }
 
 
 def _fallback_analysis(reason: str) -> dict:
@@ -46,6 +27,10 @@ def _fallback_analysis(reason: str) -> dict:
         "predictedImportantAreas": [],
         "highROIRevisionAreas": [],
         "recurringQuestionPatterns": [],
+        "importantTopicConnections": [],
+        "likelyQuestionCombinations": [],
+        "examTrendSummary": f"AI analysis unavailable: {reason}",
+        "revisionPriorityOrder": [],
         "examStrategyInsights": [f"AI analysis unavailable: {reason}"],
         "confidenceScore": "low",
     }
@@ -60,6 +45,10 @@ def _normalize_ai_output(parsed: dict) -> dict:
         "predictedImportantAreas": [],
         "highROIRevisionAreas": [],
         "recurringQuestionPatterns": [],
+        "importantTopicConnections": [],
+        "likelyQuestionCombinations": [],
+        "examTrendSummary": "",
+        "revisionPriorityOrder": [],
         "examStrategyInsights": [],
         "confidenceScore": "low",
     }
@@ -82,9 +71,11 @@ def run_ai_analysis(metadata_summary: dict) -> dict:
         return _fallback_analysis("OPENAI_API_KEY is not configured.")
 
     try:
-        client = OpenAI( api_key=api_key,
-    base_url="https://openrouter.ai/api/v1",
-    timeout=20.0,)
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://openrouter.ai/api/v1",
+            timeout=20.0,
+        )
         completion = client.responses.create(
             model="gpt-4o-mini",
             input=[
